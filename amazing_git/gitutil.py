@@ -170,7 +170,6 @@ s3_url_re = re.compile(s3_url_exp)
 def parse_s3_url(url):
     """Parse url with s3_url_exp. If the url does not match, raise an Exception."""
     m = s3_url_re.match(url)
-    log.warning(m)
     if not m:
         raise Exception('Not a valid S3 URL: %s' % url)
     return m.groupdict()

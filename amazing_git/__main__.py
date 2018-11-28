@@ -170,9 +170,10 @@ class S3Handler(GitRemoteHandler):
         print()
 
     def git_push(self, target):
-        log.debug('push args: %s' % target)
+        log.error ("WAHT IS GOING ON")
+        log.warning('push args: %s' % target)
         src, dst = target.split(':')
-        log.debug('push: %s to %s' % (src, dst))
+        log.warning('push: %s to %s' % (src, dst))
 
         # "push" == we use .fetch() to "fetch" from the local TO the remote ("target"),
         # then update the refs
