@@ -1,0 +1,250 @@
+import copy
+import logging
+import logging.config
+import os
+import socket
+
+from boto.exception import S3ResponseError
+from boto.s3.connection import S3Connection
+from dulwich import pack
+from dulwich.object_store import DiskObjectStore
+from dulwich.repo import BaseRepo, Repo
+from amazing_git.dulwich_s3 import S3Repo
+from amazing_git.gitutil import (GitRemoteHandler, HandlerException, merge_git_config,
+                     multiline_command, parse_s3_url)
+
+if os.getenv('DEBUG_AMAZING_GIT'):
+    import rpdb2
+    rpdb2.start_embedded_debugger('s3')
+
+log = logging.getLogger('git-remote-s3')
+
+
+DEFAULT_LOGGING = dict(
+    version=1,
+    formatters={
+        'colored': {
+            '()': 'colorlog.ColoredFormatter',
+            'format':
+                '%(log_color)s'
+                '%(asctime)s.%(msecs)03d '
+                '%(process)d %(name)s'
+                ':%(funcName)s:%(lineno)d '
+                '%(levelname)-8s '
+                '%(message)s '
+                '%(reset)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+        'simple': {
+            'format':
+                '%(asctime)s.%(msecs)03d '
+                '%(process)d %(name)s'
+                ':%(funcName)s:%(lineno)d '
+                '%(levelname)-8s '
+                '%(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+    handlers={
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'colored',
+            'level': logging.DEBUG,
+        },
+    },
+    root=dict(handlers=['console'], level=logging.DEBUG),
+    loggers={
+        'requests': dict(level=logging.INFO),
+        'urllib3': dict(level=logging.INFO),
+        'botocore': dict(level=logging.INFO),
+        'boto3': dict(level=logging.INFO),
+    },
+    disable_existing_loggers=False,
+)
+
+
+def configure_logging(colored=True, level=logging.DEBUG):
+    """ Configure logging with sane defaults. """
+    config = copy.deepcopy(DEFAULT_LOGGING)
+    config['handlers']['console']['level'] = level
+
+    if not colored:
+        config['handlers']['console']['formatter'] = 'simple'
+
+    logging.config.dictConfig(config)
+
+
+
+def get_from_sections(conf, sections, key):
+    log.debug('Loading %s from sections %r' % (key, sections))
+    for section in sections:
+        if section in conf and key in conf[section]:
+            return conf[section][key]
+
+
+class S3Handler(GitRemoteHandler):
+    #	supported_options = ['dry-run']
+    # FIXME: use fallback to use smart protocol for what we can actually push?
+
+    # lazy attributes, instantiate when we need them
+    _remote_repo = None
+    _local_repo = None
+
+    def __init__(self, *args, **kwargs):
+        super(S3Handler, self).__init__(*args, **kwargs)
+
+        # parse URL
+        remote_s3 = parse_s3_url(self.remote_address)
+        log.debug('Remote URL %s parsed to %s' % (self.remote_address, remote_s3))
+
+        # load git configuration
+        conf = merge_git_config()
+
+        # the sections in gut config files we are reading
+        conf_sections = ['remote "%s"' % self.remote_name, 's3']
+
+        self.remote_bucket = remote_s3['bucket']
+        self.remote_prefix = remote_s3['prefix'] or ''
+        self.remote_key = remote_s3['key'] or get_from_sections(conf, conf_sections, 'key')
+        if not self.remote_key:
+            HandlerException('No access key specified. Cannot access bucket %s' % self.remote_bucket)
+
+        # load a secret for a specific key
+        self.remote_secret = remote_s3['secret'] or get_from_sections(
+            conf, conf_sections, '%s-secret' % self.remote_key
+        )
+        if not self.remote_secret:
+            raise HandlerException('No secret key specified. Cannot access bucket %s' % self.remote_bucket)
+
+        log.debug(
+            'loaded credentials, final url: http://%s:%s@%s:%s' %
+            (self.remote_key, self.remote_secret, self.remote_bucket, self.remote_prefix)
+        )
+
+    def create_bucket(self):
+        try:
+            conn = S3Connection(self.remote_key, self.remote_secret)
+            log.debug('Opened S3Connection %r' % conn)
+            bucket = conn.get_bucket(self.remote_bucket)
+            log.debug('Got bucket: %r' % bucket)
+        except S3ResponseError as e:
+            if 'InvalidAccessKeyId' == e.error_code:
+                raise HandlerException('S3: Unknown access key: "%s"' % self.remote_key)
+            if 'SignatureDoesNotMatch' == e.error_code:
+                raise HandlerException(
+                    'S3: Signature mismtach: Possibly wrong secret key for access key "%s"' % self.remote_key
+                )
+            if 'NoSuchBucket' == e.error_code:
+                raise HandlerException('S3: No such bucket: %s' % self.remote_bucket)
+            raise HandlerException('S3: Error: %s' % e)
+        return bucket
+
+    @property
+    def remote_repo(self):
+        if not self._remote_repo:
+            self._remote_repo = S3Repo(self.create_bucket, self.remote_prefix)
+            log.debug('Instantiated repo: %r' % self._remote_repo)
+
+        return self._remote_repo
+
+    @property
+    def local_repo(self):
+        if not self._local_repo:
+            GIT_DIR = os.getenv('GIT_DIR')
+            if not GIT_DIR:
+                log.debug('GIT_DIR not present in environment, falling back to .git')
+                self._local_repo = Repo('.git')
+            else:
+                assert (GIT_DIR)
+                self._local_repo = Repo(GIT_DIR)
+            log.debug('local repository instance on %r' % GIT_DIR)
+
+        return self._local_repo
+
+    def git_list(self, *args):
+        log.debug('listing refs')
+        for name, hash in self.remote_repo.get_refs().iteritems():
+            output = '%s %s' % (hash, name)
+            log.debug(output)
+            print (output)
+        print()
+
+    def git_push(self, target):
+        log.debug('push args: %s' % target)
+        src, dst = target.split(':')
+        log.debug('push: %s to %s' % (src, dst))
+
+        # "push" == we use .fetch() to "fetch" from the local TO the remote ("target"),
+        # then update the refs
+        def determine_wants(heads):
+            wants = [heads[src]]
+            log.debug('pushing %r, wants is %r' % (src, wants))
+            return wants
+
+        log.debug('calling fetch')
+
+        # NOTE: The "MissingObjectsFinder" in the dulwich version used (as of Feb 1st, 2011
+        # will fetch too many Blobs. Namely, it will correctly determine missing commits,
+        # but then transfer all files in these commits, even though they may already be
+        # contained in commits in common that are not in the repository.
+        # FIXME: speed this up using a multi-threaded uploader or something similiar
+        #        (thread safety: needs a new connection/s3 bucket for every thread!)
+        self.local_repo.fetch(self.remote_repo, determine_wants, self.report_progress)
+
+        # uploaded everything, update refs next
+        # FIXME: ACQUIRE LOCK HERE
+        head = self.local_repo[src]
+        log.debug('setting %s on remote to %s' % (dst, head.sha().hexdigest()))
+        self.remote_repo[dst] = head
+        # FIXME: RELEASE LOCK HERE
+
+        # report pushing went okay
+        print("ok %s" % dst)
+        print()
+
+    @multiline_command
+    def git_fetch(self, lines):
+        for line in lines:
+            args = line.split(' ')
+            assert ('fetch' == args.pop(0))
+            sha1 = args.pop(0)
+            name = args.pop(0) if args else None
+
+            log.debug('fetching %s %s' % (sha1, name))
+            log.debug('which is: %r' % self.remote_repo[sha1])
+
+            # fetch from remote to local repo
+            # FIXME: the iterators involved in creating a pack will, at some point
+            #        iterate over all ShaFiles at this point. creation of an ShaFile
+            #        always entails downloading the complete object at this point
+            #        best solution seems to be to patch dulwich
+            msg = 'fetch-pack %d on %s' % (os.getpid(), socket.gethostname())
+            log.debug('keep message is %r' % msg)
+            refs, keepfile = self.remote_repo.fetch_and_keep(
+                self.local_repo, lambda _: [sha1], self.report_progress, msg=msg
+            )
+            log.debug('keeping pack %s' % keepfile)
+            print("lock %s" % keepfile)
+
+            log.debug('fetch finished')
+
+        # end with blank line
+        print()
+
+    def report_progress(self, msg):
+        log.info(msg)
+
+
+def main():
+    configure_logging()
+
+    try:
+        S3Handler().run()
+    except HandlerException as e:
+        log.critical(e)
+    except Exception as  e:
+        log.exception(e)   
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,4 @@
+boto>=2.49.0
+dulwich>=0.19.9
+gitpython>=2.1.11
+colorlog>=3.1.4
