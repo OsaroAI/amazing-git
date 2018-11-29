@@ -220,11 +220,12 @@ class S3Handler(GitRemoteHandler):
             #        best solution seems to be to patch dulwich
             msg = 'fetch-pack %d on %s' % (os.getpid(), socket.gethostname())
             log.debug('keep message is %r' % msg)
-            refs, keepfile = self.remote_repo.fetch_and_keep(
-                self.local_repo, lambda _: [sha1], self.report_progress, msg=msg
+            refs = self.remote_repo.fetch(
+                self.local_repo, lambda _: [sha1], self.report_progress
+		#, msg=msg
             )
-            log.debug('keeping pack %s' % keepfile)
-            print "lock %s" % keepfile
+            #log.debug('keeping pack %s' % keepfile)
+            #print "lock %s" % keepfile
 
             log.debug('fetch finished')
 
