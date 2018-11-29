@@ -165,6 +165,6 @@ if '__main__' == __name__:
     bucket = conn.get_bucket(bucketname)
 
     with S3KeyLock(bucket, 'my_amazing_lock'):
-        print("RUNNING CRITICAL SECTION")
-        print("Press enter to end critical section")
+        print "RUNNING CRITICAL SECTION"
+        print "Press enter to end critical section"
         sys.stdin.readline()

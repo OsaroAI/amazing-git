@@ -273,7 +273,6 @@ class S3ObjectStore(PackBasedObjectStore, S3PrefixFS):
 		   still cause it to be uploaded, overwriting the old with the same data."""
         self.add_objects([obj])
 
-
 class S3CachedObjectStore(S3ObjectStore):
     def __init__(self, *args, **kwargs):
         super(S3CachedObjectStore, self).__init__(*args, **kwargs)
@@ -314,7 +313,6 @@ class S3Repo(BaseRepo):
     def _init(self):
         log.debug('Initializing S3 repository')
         self.refs.set_symbolic_ref('HEAD', 'refs/heads/master')
-
 
 def calc_object_path(prefix, hexsha):
     path = '%sobjects/%s/%s' % (prefix, hexsha[0:2], hexsha[2:40])

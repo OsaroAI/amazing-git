@@ -97,10 +97,10 @@ class GitRemoteHandler(object):
 
         self._log.debug('sending capabilities: %s' % caps)
         for c in caps:
-            print(c)
+            print c
 
         # end with a blank line
-        print()
+        print
 
     def git_option(self, name, value):
         """Handle git options.
@@ -110,10 +110,10 @@ class GitRemoteHandler(object):
         if name in self.supported_options:
             self.options[name] = value
             self._log.debug('option %s: %s' % (name, value))
-            print("ok")
+            print "ok"
         else:
             self._log.debug('option %s unsupported' % name)
-            print("unsupported")
+            print "unsupported"
 
     def run(self):
         """Run, waiting for input.

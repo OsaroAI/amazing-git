@@ -166,11 +166,10 @@ class S3Handler(GitRemoteHandler):
         for name, hash in self.remote_repo.get_refs().iteritems():
             output = '%s %s' % (hash, name)
             log.debug(output)
-            print (output)
-        print()
+            print output
+        print
 
     def git_push(self, target):
-        log.error ("WAHT IS GOING ON")
         log.warning('push args: %s' % target)
         src, dst = target.split(':')
         log.warning('push: %s to %s' % (src, dst))
@@ -200,8 +199,8 @@ class S3Handler(GitRemoteHandler):
         # FIXME: RELEASE LOCK HERE
 
         # report pushing went okay
-        print("ok %s" % dst)
-        print()
+        print "ok %s" % dst
+        print
 
     @multiline_command
     def git_fetch(self, lines):
@@ -225,12 +224,12 @@ class S3Handler(GitRemoteHandler):
                 self.local_repo, lambda _: [sha1], self.report_progress, msg=msg
             )
             log.debug('keeping pack %s' % keepfile)
-            print("lock %s" % keepfile)
+            print "lock %s" % keepfile
 
             log.debug('fetch finished')
 
         # end with blank line
-        print()
+        print
 
     def report_progress(self, msg):
         log.info(msg)
