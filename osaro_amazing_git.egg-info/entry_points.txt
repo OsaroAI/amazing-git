@@ -1,3 +1,0 @@
-[console_scripts]
-git-remote-s3 = amazing_git.__main__:main
-
