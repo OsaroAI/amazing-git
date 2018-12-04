@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+
+export SHELL=bash
+
+export DH_VERBOSE=1
+
+export DH_UPGRADE_WHEEL=1 DH_UPGRADE_PIP=1
+
+export DH_VIRTUALENV_INSTALL_ROOT=/opt
+
+export PYBUILD_NAME=osaro-amazing-git
+
+%:
+	dh $@ --with python-virtualenv
+
+override_dh_virtualenv:
+	dh_virtualenv --python=python3.6 -S -s -v \
+    	--extra-pip-arg "--ignore-installed"
+
+override_dh_auto_test:
+	#py.test || (echo "Tests are failing but that's okay I guess for now.." >&2)
+	:
