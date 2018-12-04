@@ -14,7 +14,7 @@ export PYBUILD_NAME=osaro-amazing-git
 	dh $@ --with python-virtualenv
 
 override_dh_virtualenv:
-	dh_virtualenv --python=python3.6 -S -s -v \
+	dh_virtualenv --python=python2 -S -s -v \
     	--extra-pip-arg "--ignore-installed"
 
 override_dh_auto_test:
