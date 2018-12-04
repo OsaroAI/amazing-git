@@ -13,7 +13,7 @@ Standards-Version: 3.9.5
 Package: osaro-amazing-git
 Architecture: any
 Depends: 
-  ${python:Depends}, ${misc:Depends}
-  python2.7-minimal,
+  ${python:Depends}, ${misc:Depends},
+  python2.7-minimal
 Description: sets up s3 as remote repository
  sets up s3 as remote repository
