@@ -4,7 +4,6 @@ Priority: extra
 Maintainer: norman ponte <nponte@osaro.com>
 Build-Depends: 
   debhelper (>= 9), 
-  python2.7-minimal,
   dh-virtualenv,
   dh-python,
   build-essential
@@ -14,6 +13,5 @@ Package: osaro-amazing-git
 Architecture: any
 Depends: 
   ${python:Depends}, ${misc:Depends},
-  python2.7-minimal
 Description: sets up s3 as remote repository
  sets up s3 as remote repository
