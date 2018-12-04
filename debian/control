@@ -10,6 +10,7 @@ Build-Depends:
   dh-python,
   build-essential
 Standards-Version: 3.9.5
+
 Package: osaro-amazing-git
 Architecture: any
 Depends: 
