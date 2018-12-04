@@ -6,12 +6,13 @@ Build-Depends:
   debhelper (>= 9), 
   dh-virtualenv,
   dh-python,
+  python2.7-dev,
   build-essential
 Standards-Version: 3.9.5
 
 Package: osaro-amazing-git
 Architecture: any
 Depends: 
-  ${python:Depends}, ${misc:Depends},
+  ${python:Depends}, ${misc:Depends}
 Description: sets up s3 as remote repository
  sets up s3 as remote repository
