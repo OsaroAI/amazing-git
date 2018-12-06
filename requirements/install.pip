@@ -1,4 +1,4 @@
 boto>=2.49.0
-osaro-dulwich=0.7.1
+osaro-dulwich==0.7.1
 gitpython>=2.1.11
 colorlog>=3.1.4
