@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import copy
 import logging
 import logging.config
@@ -10,8 +9,8 @@ from boto.s3.connection import S3Connection
 from dulwich import pack
 from dulwich.object_store import DiskObjectStore
 from dulwich.repo import BaseRepo, Repo
-from dulwich_s3 import S3Repo
-from gitutil import (GitRemoteHandler, HandlerException, merge_git_config,
+from amazing_git.dulwich_s3 import S3Repo
+from amazing_git.gitutil import (GitRemoteHandler, HandlerException, merge_git_config,
                      multiline_command, parse_s3_url)
 
 if os.getenv('DEBUG_AMAZING_GIT'):
@@ -128,7 +127,7 @@ class S3Handler(GitRemoteHandler):
             log.debug('Opened S3Connection %r' % conn)
             bucket = conn.get_bucket(self.remote_bucket)
             log.debug('Got bucket: %r' % bucket)
-        except S3ResponseError, e:
+        except S3ResponseError as e:
             if 'InvalidAccessKeyId' == e.error_code:
                 raise HandlerException('S3: Unknown access key: "%s"' % self.remote_key)
             if 'SignatureDoesNotMatch' == e.error_code:
@@ -137,7 +136,7 @@ class S3Handler(GitRemoteHandler):
                 )
             if 'NoSuchBucket' == e.error_code:
                 raise HandlerException('S3: No such bucket: %s' % self.remote_bucket)
-            raise HandlerException('S3: Error: %s' % e.error_message)
+            raise HandlerException('S3: Error: %s' % e)
         return bucket
 
     @property
@@ -171,9 +170,9 @@ class S3Handler(GitRemoteHandler):
         print
 
     def git_push(self, target):
-        log.debug('push args: %s' % target)
+        log.warning('push args: %s' % target)
         src, dst = target.split(':')
-        log.debug('push: %s to %s' % (src, dst))
+        log.warning('push: %s to %s' % (src, dst))
 
         # "push" == we use .fetch() to "fetch" from the local TO the remote ("target"),
         # then update the refs
@@ -221,11 +220,12 @@ class S3Handler(GitRemoteHandler):
             #        best solution seems to be to patch dulwich
             msg = 'fetch-pack %d on %s' % (os.getpid(), socket.gethostname())
             log.debug('keep message is %r' % msg)
-            refs, keepfile = self.remote_repo.fetch_and_keep(
-                self.local_repo, lambda _: [sha1], self.report_progress, msg=msg
+            refs = self.remote_repo.fetch(
+                self.local_repo, lambda _: [sha1], self.report_progress
+		#, msg=msg
             )
-            log.debug('keeping pack %s' % keepfile)
-            print "lock %s" % keepfile
+            #log.debug('keeping pack %s' % keepfile)
+            #print "lock %s" % keepfile
 
             log.debug('fetch finished')
 
@@ -236,12 +236,16 @@ class S3Handler(GitRemoteHandler):
         log.info(msg)
 
 
-if __name__ == '__main__':
+def main():
     configure_logging()
 
     try:
         S3Handler().run()
-    except HandlerException, e:
+    except HandlerException as e:
         log.critical(e)
-    except Exception, e:
-        log.exception(e)
+    except Exception as  e:
+        log.exception(e)   
+
+
+if __name__ == '__main__':
+    main()

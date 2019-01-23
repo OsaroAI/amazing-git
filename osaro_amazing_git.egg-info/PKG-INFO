@@ -1,0 +1,15 @@
+Metadata-Version: 2.1
+Name: osaro-amazing-git
+Version: 0+untagged.99.gc3a99b4.dirty
+Summary: UNKNOWN
+Home-page: https://github.com/osaroai/amazing-git.git
+Author: Osaro
+Author-email: ops@osaro.com
+License: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN
+Provides-Extra: install_requires
+Provides-Extra: all
+Provides-Extra: requirements
+Provides-Extra: install
+Provides-Extra: dev

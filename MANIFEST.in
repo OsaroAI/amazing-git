@@ -1,0 +1,3 @@
+include versioneer.py
+include amazing-git/_version.py
+include amazing_git/_version.py

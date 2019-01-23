@@ -5,13 +5,13 @@ import time
 import zlib
 
 import threading
-from queue import Queue
+from Queue import Queue
 
 # for the object store
 from dulwich.object_store import PackBasedObjectStore, ShaFile, ObjectStoreIterator
 from dulwich.objects import Blob
 from dulwich.pack import PackData, iter_sha1, write_pack_index_v2, Pack, load_pack_index_file
-from io import StringIO
+from cStringIO import StringIO
 
 # for the refstore
 from dulwich.repo import RefsContainer, SYMREF
@@ -273,7 +273,6 @@ class S3ObjectStore(PackBasedObjectStore, S3PrefixFS):
 		   still cause it to be uploaded, overwriting the old with the same data."""
         self.add_objects([obj])
 
-
 class S3CachedObjectStore(S3ObjectStore):
     def __init__(self, *args, **kwargs):
         super(S3CachedObjectStore, self).__init__(*args, **kwargs)
@@ -302,7 +301,7 @@ class S3Repo(BaseRepo):
     def __init__(self, create_bucket, prefix='.git'):
         object_store = S3CachedObjectStore(create_bucket, prefix)
         refs = S3RefsContainer(create_bucket, prefix)
-
+ 
         # check if repo is initialized
         super(S3Repo, self).__init__(object_store, refs)
 
@@ -314,7 +313,6 @@ class S3Repo(BaseRepo):
     def _init(self):
         log.debug('Initializing S3 repository')
         self.refs.set_symbolic_ref('HEAD', 'refs/heads/master')
-
 
 def calc_object_path(prefix, hexsha):
     path = '%sobjects/%s/%s' % (prefix, hexsha[0:2], hexsha[2:40])
